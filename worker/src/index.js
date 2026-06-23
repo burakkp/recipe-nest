@@ -138,8 +138,13 @@ export default {
     if (url) {
       const og = await resolveUrl(url);
       image = og.image;
-      if (og.title) parts.push(og.title);
-      if (og.description) parts.push(og.description);
+      // A real public post always has a description (the caption). A bare
+      // title with no description is what Instagram's blocked/login-wall
+      // pages return — don't treat that as real content.
+      if (og.description) {
+        if (og.title) parts.push(og.title);
+        parts.push(og.description);
+      }
     }
 
     if (text && text.trim() && !isBareUrl(text)) parts.push(text.trim());
