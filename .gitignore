@@ -43,3 +43,6 @@ yarn-error.*
 # Cloudflare Worker
 worker/.wrangler/
 
+# Git worktrees
+.worktrees/
+
