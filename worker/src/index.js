@@ -62,8 +62,11 @@ async function resolveUrl(url) {
   }
 }
 
+// Some Workers AI models return the parsed object directly under `.response`;
+// others return a raw string (possibly with markdown/commentary around the JSON).
 function parseRecipeJSON(raw) {
   if (!raw) return null;
+  if (typeof raw === 'object') return raw;
   const start = raw.indexOf('{');
   const end = raw.lastIndexOf('}');
   if (start === -1 || end === -1) return null;
@@ -126,38 +129,25 @@ export default {
     let image = null;
     const parts = [];
 
-    try {
-      if (url) {
-        const og = await resolveUrl(url);
-        image = og.image;
-        if (og.title) parts.push(og.title);
-        if (og.description) parts.push(og.description);
-      }
-
-      if (text && text.trim()) parts.push(text.trim());
-
-      const source = parts.join('\n\n').trim();
-
-      if (!source) {
-        return json({ error: 'no_text', image, sourceUrl }, 422);
-      }
-
-      const raw = await callLLM(env, source);
-
-      // Temporary debug surface to find the root cause — remove once fixed.
-      return json({ error: 'debug_raw_shape', rawType: typeof raw, raw }, 200);
-
-      const parsed = parseRecipeJSON(raw);
-      const recipe = parsed || { title: '', area: '', category: '', ingredients: [], steps: [] };
-
-      if (!parsed) {
-        return json({ error: 'debug_parse_failed', raw, ...recipe, image, sourceUrl }, 200);
-      }
-
-      return json({ ...recipe, image, sourceUrl });
-    } catch (err) {
-      // Temporary debug surface to find the root cause — remove once fixed.
-      return json({ error: 'debug_exception', message: String(err && err.message), stack: String(err && err.stack) }, 500);
+    if (url) {
+      const og = await resolveUrl(url);
+      image = og.image;
+      if (og.title) parts.push(og.title);
+      if (og.description) parts.push(og.description);
     }
+
+    if (text && text.trim()) parts.push(text.trim());
+
+    const source = parts.join('\n\n').trim();
+
+    if (!source) {
+      return json({ error: 'no_text', image, sourceUrl }, 422);
+    }
+
+    const raw = await callLLM(env, source);
+    const recipe =
+      parseRecipeJSON(raw) || { title: '', area: '', category: '', ingredients: [], steps: [] };
+
+    return json({ ...recipe, image, sourceUrl });
   },
 };
