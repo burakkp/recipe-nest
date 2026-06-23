@@ -143,8 +143,13 @@ export default {
       }
 
       const raw = await callLLM(env, source);
-      const recipe =
-        parseRecipeJSON(raw) || { title: '', area: '', category: '', ingredients: [], steps: [] };
+      const parsed = parseRecipeJSON(raw);
+      const recipe = parsed || { title: '', area: '', category: '', ingredients: [], steps: [] };
+
+      // Temporary debug surface to find the root cause — remove once fixed.
+      if (!parsed) {
+        return json({ error: 'debug_parse_failed', raw, ...recipe, image, sourceUrl }, 200);
+      }
 
       return json({ ...recipe, image, sourceUrl });
     } catch (err) {
