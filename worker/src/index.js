@@ -143,10 +143,13 @@ export default {
       }
 
       const raw = await callLLM(env, source);
+
+      // Temporary debug surface to find the root cause — remove once fixed.
+      return json({ error: 'debug_raw_shape', rawType: typeof raw, raw }, 200);
+
       const parsed = parseRecipeJSON(raw);
       const recipe = parsed || { title: '', area: '', category: '', ingredients: [], steps: [] };
 
-      // Temporary debug surface to find the root cause — remove once fixed.
       if (!parsed) {
         return json({ error: 'debug_parse_failed', raw, ...recipe, image, sourceUrl }, 200);
       }
