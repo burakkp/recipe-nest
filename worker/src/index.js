@@ -58,13 +58,19 @@ async function resolveUrl(url) {
       },
     });
     const html = await res.text();
+    const title = getMetaContent(html, 'og:title');
+    // Instagram's og:title is typically "<Name> (@<handle>) on Instagram" —
+    // pull the handle out so we can always credit/link the original account.
+    const handleMatch = title ? title.match(/\(@([a-zA-Z0-9_.]+)\)/) : null;
     return {
       image: getMetaContent(html, 'og:image'),
-      title: getMetaContent(html, 'og:title'),
+      video: getMetaContent(html, 'og:video:secure_url') || getMetaContent(html, 'og:video'),
+      title,
       description: getMetaContent(html, 'og:description'),
+      handle: handleMatch ? handleMatch[1] : null,
     };
   } catch (e) {
-    return { image: null, title: null, description: null };
+    return { image: null, video: null, title: null, description: null, handle: null };
   }
 }
 
@@ -133,11 +139,15 @@ export default {
     const { url, text } = body || {};
     const sourceUrl = url || '';
     let image = null;
+    let video = null;
+    let handle = null;
     const parts = [];
 
     if (url) {
       const og = await resolveUrl(url);
       image = og.image;
+      video = og.video;
+      handle = og.handle;
       // A real public post always has a description (the caption). A bare
       // title with no description is what Instagram's blocked/login-wall
       // pages return — don't treat that as real content.
@@ -152,13 +162,13 @@ export default {
     const source = parts.join('\n\n').trim();
 
     if (!source) {
-      return json({ error: 'no_text', image, sourceUrl }, 422);
+      return json({ error: 'no_text', image, video, handle, sourceUrl }, 422);
     }
 
     const raw = await callLLM(env, source);
     const recipe =
       parseRecipeJSON(raw) || { title: '', area: '', category: '', ingredients: [], steps: [] };
 
-    return json({ ...recipe, image, sourceUrl });
+    return json({ ...recipe, image, video, handle, sourceUrl });
   },
 };
