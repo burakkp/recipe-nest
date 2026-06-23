@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -32,6 +33,8 @@ export default function ShareImportScreen({ route, navigation }) {
         setDraft({
           title: data.title || '',
           image: data.image || '',
+          video: data.video || '',
+          handle: data.handle || '',
           area: data.area || '',
           category: data.category || '',
           ingredients: data.ingredients || [],
@@ -42,7 +45,12 @@ export default function ShareImportScreen({ route, navigation }) {
       })
       .catch((err) => {
         if (err.code === 'NEEDS_CAPTION') {
-          setCaptionInfo({ image: err.image, sourceUrl: err.sourceUrl });
+          setCaptionInfo({
+            image: err.image,
+            video: err.video,
+            handle: err.handle,
+            sourceUrl: err.sourceUrl,
+          });
           setStatus('needs_caption');
         } else {
           setStatus('error');
@@ -79,6 +87,8 @@ export default function ShareImportScreen({ route, navigation }) {
       id: `imported-${Date.now()}`,
       title: draft.title,
       thumb: draft.image,
+      video: draft.video,
+      handle: draft.handle,
       area: draft.area,
       category: draft.category,
       ingredients: draft.ingredients,
@@ -114,6 +124,13 @@ export default function ShareImportScreen({ route, navigation }) {
         <Text style={styles.muted}>
           Paste the caption or recipe text below and we'll structure it for you.
         </Text>
+        {!!captionInfo?.sourceUrl && (
+          <TouchableOpacity onPress={() => Linking.openURL(captionInfo.sourceUrl)}>
+            <Text style={styles.sourceLink}>
+              {captionInfo.handle ? `View @${captionInfo.handle}'s post` : 'View original post'}
+            </Text>
+          </TouchableOpacity>
+        )}
         <TextInput
           style={styles.captionInput}
           multiline
@@ -185,6 +202,18 @@ export default function ShareImportScreen({ route, navigation }) {
         </View>
 
         <View style={styles.titleBlock}>
+          {!!draft.sourceUrl && (
+            <TouchableOpacity onPress={() => Linking.openURL(draft.sourceUrl)}>
+              <Text style={styles.sourceLink}>
+                {draft.handle ? `View @${draft.handle}'s post` : 'View original post'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {!!draft.video && (
+            <TouchableOpacity onPress={() => Linking.openURL(draft.video)}>
+              <Text style={styles.sourceLink}>Watch original video</Text>
+            </TouchableOpacity>
+          )}
           <View style={styles.titleInputRow}>
             <TextInput
               style={styles.titleInput}
@@ -296,6 +325,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.chip,
     marginBottom: 16,
+  },
+  sourceLink: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
   },
 
   // Direction A · Social card preview
