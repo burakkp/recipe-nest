@@ -30,6 +30,12 @@ function decodeEntities(str) {
     .replace(/&gt;/g, '>');
 }
 
+// True when the shared "text" is nothing but a URL — i.e. not real caption
+// content, even though it's non-empty. Common when sharing a bare link.
+function isBareUrl(str) {
+  return /^https?:\/\/\S+$/i.test(str.trim());
+}
+
 // Matches <meta property="og:x" content="..."> in either attribute order.
 function getMetaContent(html, key) {
   const patterns = [
@@ -136,7 +142,7 @@ export default {
       if (og.description) parts.push(og.description);
     }
 
-    if (text && text.trim()) parts.push(text.trim());
+    if (text && text.trim() && !isBareUrl(text)) parts.push(text.trim());
 
     const source = parts.join('\n\n').trim();
 
