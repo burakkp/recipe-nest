@@ -23,7 +23,7 @@ export default function ShareImportScreen({ route, navigation }) {
 
   const [status, setStatus] = useState('loading'); // loading | ready | needs_caption | error
   const [draft, setDraft] = useState(null);
-  const [captionInfo, setCaptionInfo] = useState(null); // { image, sourceUrl }
+  const [captionInfo, setCaptionInfo] = useState(null); // { image, video, handle, sourceUrl }
   const [pastedText, setPastedText] = useState('');
 
   const runExtract = useCallback((payload) => {
