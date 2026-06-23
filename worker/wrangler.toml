@@ -6,4 +6,4 @@ compatibility_date = "2024-09-23"
 binding = "AI"
 
 [vars]
-MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+MODEL = "@cf/meta/llama-3.1-8b-instruct-fast"

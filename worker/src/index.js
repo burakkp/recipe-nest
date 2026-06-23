@@ -76,7 +76,7 @@ function parseRecipeJSON(raw) {
 
 // Swap point for a different model/provider — keep the signature (env, source) -> string.
 async function callLLM(env, source) {
-  const out = await env.AI.run(env.MODEL || '@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+  const out = await env.AI.run(env.MODEL || '@cf/meta/llama-3.1-8b-instruct-fast', {
     max_tokens: 1500,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
