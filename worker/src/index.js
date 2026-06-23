@@ -126,25 +126,30 @@ export default {
     let image = null;
     const parts = [];
 
-    if (url) {
-      const og = await resolveUrl(url);
-      image = og.image;
-      if (og.title) parts.push(og.title);
-      if (og.description) parts.push(og.description);
+    try {
+      if (url) {
+        const og = await resolveUrl(url);
+        image = og.image;
+        if (og.title) parts.push(og.title);
+        if (og.description) parts.push(og.description);
+      }
+
+      if (text && text.trim()) parts.push(text.trim());
+
+      const source = parts.join('\n\n').trim();
+
+      if (!source) {
+        return json({ error: 'no_text', image, sourceUrl }, 422);
+      }
+
+      const raw = await callLLM(env, source);
+      const recipe =
+        parseRecipeJSON(raw) || { title: '', area: '', category: '', ingredients: [], steps: [] };
+
+      return json({ ...recipe, image, sourceUrl });
+    } catch (err) {
+      // Temporary debug surface to find the root cause — remove once fixed.
+      return json({ error: 'debug_exception', message: String(err && err.message), stack: String(err && err.stack) }, 500);
     }
-
-    if (text && text.trim()) parts.push(text.trim());
-
-    const source = parts.join('\n\n').trim();
-
-    if (!source) {
-      return json({ error: 'no_text', image, sourceUrl }, 422);
-    }
-
-    const raw = await callLLM(env, source);
-    const recipe =
-      parseRecipeJSON(raw) || { title: '', area: '', category: '', ingredients: [], steps: [] };
-
-    return json({ ...recipe, image, sourceUrl });
   },
 };
