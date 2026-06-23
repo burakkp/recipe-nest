@@ -144,6 +144,7 @@ export default function DetailScreen({ route, navigation }) {
 
         <View style={styles.body}>
           <Text style={styles.title}>{recipe.title}</Text>
+          {!!recipe.handle && <Text style={styles.handle}>@{recipe.handle}</Text>}
 
           {(recipe.category || recipe.area) && (
             <View style={styles.tagsRow}>
@@ -186,7 +187,14 @@ export default function DetailScreen({ route, navigation }) {
 
           {recipe.source ? (
             <Pressable onPress={() => Linking.openURL(recipe.source)}>
-              <Text style={styles.sourceLink}>View source</Text>
+              <Text style={styles.sourceLink}>
+                {recipe.handle ? `View @${recipe.handle}'s post` : 'View original post'}
+              </Text>
+            </Pressable>
+          ) : null}
+          {recipe.video ? (
+            <Pressable onPress={() => Linking.openURL(recipe.video)}>
+              <Text style={styles.sourceLink}>Watch original video</Text>
             </Pressable>
           ) : null}
         </View>
@@ -262,6 +270,12 @@ const styles = StyleSheet.create({
   title: {
     ...type.display,
     color: colors.ink,
+    marginBottom: 12,
+  },
+  handle: {
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: '500',
     marginBottom: 12,
   },
   tagsRow: {
