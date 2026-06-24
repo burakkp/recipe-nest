@@ -210,6 +210,8 @@ async function handleTranslate(request, env) {
     parseRecipeJSON(raw) || { title: '', area: '', category: '', description: '', ingredients: [], steps: [] }
   );
 
+  // The translate prompt never asks for a "language" field, so normalizeRecipe's
+  // default ('en') would be meaningless here — targetLanguage is the only correct value.
   return json({ ...translated, language: targetLanguage });
 }
 
