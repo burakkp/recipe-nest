@@ -145,6 +145,7 @@ export default function DetailScreen({ route, navigation }) {
         <View style={styles.body}>
           <Text style={styles.title}>{recipe.title}</Text>
           {!!recipe.handle && <Text style={styles.handle}>@{recipe.handle}</Text>}
+          {!!recipe.description && <Text style={styles.description}>{recipe.description}</Text>}
 
           {(recipe.category || recipe.area) && (
             <View style={styles.tagsRow}>
@@ -276,6 +277,12 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 14,
     fontWeight: '500',
+    marginBottom: 12,
+  },
+  description: {
+    color: colors.ink,
+    fontSize: 14,
+    lineHeight: 20,
     marginBottom: 12,
   },
   tagsRow: {

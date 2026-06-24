@@ -6,7 +6,7 @@ const CORS_HEADERS = {
 
 const SYSTEM_PROMPT = `You convert a messy food caption into structured recipe JSON.
 Return ONLY valid JSON, no markdown, no commentary, in this exact shape:
-{"title": "", "area": "", "category": "", "ingredients": [{"name": "", "measure": ""}], "steps": []}
+{"title": "", "area": "", "category": "", "description": "", "ingredients": [{"name": "", "measure": ""}], "steps": []}
 Rules:
 - Read the entire text carefully and capture every ingredient and every step mentioned —
   do not stop early or summarize/merge multiple ingredients or steps into one.
@@ -16,17 +16,24 @@ Rules:
   string (never an object) describing one distinct instruction.
 - Fill in only what you can confidently infer from the text — don't invent ingredients,
   quantities, or steps that aren't stated or clearly implied.
+- "description" is a short 1-2 sentence summary of the dish, written by you (not copied
+  verbatim from the source).
+- If the source text is not in English, translate "title", "description", every
+  ingredient "name", and every "steps" entry into English. Keep numbers/quantities in
+  "measure" accurate through the translation.
 - Leave unknown string fields as empty strings, unknown lists as empty arrays.
 - "area" is a cuisine/region (e.g. "Italian"), "category" is a meal type (e.g. "Dessert").
-- If the text is not a recipe at all, return title/ingredients/steps empty.`;
+- If the text is not a recipe at all, return title/description/ingredients/steps empty.`;
 
-// Prompt for the vision model: turn an image (often an Instagram Story with the
-// recipe written as on-image text stickers, since Stories have no caption field)
-// into plain text the same SYSTEM_PROMPT pipeline above can then structure.
-const VISION_PROMPT = `Transcribe every piece of text visible in this image exactly as written,
-including any title, ingredient list with quantities, and numbered or bulleted steps.
-If the image is a photo of a finished dish with little or no on-image text, instead
-describe the dish and any visible ingredients in detail. Output plain text only.`;
+// Prompt for the vision model: turn an image (e.g. a screenshot of an Instagram
+// post/Story caption panel, or a Story photo with the recipe written as on-image
+// text stickers) into plain text the same SYSTEM_PROMPT pipeline above can structure.
+const VISION_PROMPT = `Transcribe every piece of text visible in this image exactly as
+written, in its original language — including any title, caption, ingredient list with
+quantities, and numbered or bulleted steps. Read carefully line by line; do not skip or
+summarize any text, even if it is a long paragraph. If the image is a photo of a finished
+dish with little or no text, instead describe the dish and any visible ingredients in
+detail. Output plain text only, in the original language (do not translate here).`;
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -120,6 +127,7 @@ function normalizeRecipe(recipe) {
     title: typeof recipe.title === 'string' ? recipe.title : '',
     area: typeof recipe.area === 'string' ? recipe.area : '',
     category: typeof recipe.category === 'string' ? recipe.category : '',
+    description: typeof recipe.description === 'string' ? recipe.description : '',
     ingredients: Array.isArray(recipe.ingredients)
       ? recipe.ingredients.map((ing) =>
           ing && typeof ing === 'object'
@@ -135,12 +143,14 @@ function normalizeRecipe(recipe) {
 // text-based callLLM below can structure it into a recipe. Swap point for a
 // different vision model/provider — keep the signature (env, bytes) -> string.
 async function callVisionLLM(env, bytes) {
-  const out = await env.AI.run(env.VISION_MODEL || '@cf/llava-hf/llava-1.5-7b-hf', {
+  const out = await env.AI.run(env.VISION_MODEL || '@cf/meta/llama-3.2-11b-vision-instruct', {
     image: bytes,
     prompt: VISION_PROMPT,
     max_tokens: 1024,
   });
-  return out.description || '';
+  // Vision-instruct chat models return `.response`; image-captioning models
+  // (e.g. LLaVA) return `.description` — accept either shape.
+  return out.response || out.description || '';
 }
 
 // Swap point for a different model/provider — keep the signature (env, source) -> string.

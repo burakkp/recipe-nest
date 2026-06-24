@@ -37,6 +37,7 @@ export default function ShareImportScreen({ route, navigation }) {
           image: data.image || payload.image?.path || '',
           video: data.video || '',
           handle: data.handle || '',
+          description: data.description || '',
           area: data.area || '',
           category: data.category || '',
           ingredients: data.ingredients || [],
@@ -68,6 +69,10 @@ export default function ShareImportScreen({ route, navigation }) {
     setDraft((prev) => ({ ...prev, title: value }));
   }
 
+  function updateDescription(value) {
+    setDraft((prev) => ({ ...prev, description: value }));
+  }
+
   function updateIngredient(index, field, value) {
     setDraft((prev) => {
       const ingredients = [...prev.ingredients];
@@ -91,6 +96,7 @@ export default function ShareImportScreen({ route, navigation }) {
       thumb: draft.image,
       video: draft.video,
       handle: draft.handle,
+      description: draft.description,
       area: draft.area,
       category: draft.category,
       ingredients: draft.ingredients,
@@ -230,6 +236,14 @@ export default function ShareImportScreen({ route, navigation }) {
             />
             <Ionicons name="pencil-outline" size={16} color={colors.muted} />
           </View>
+          <TextInput
+            style={styles.descriptionInput}
+            value={draft.description}
+            onChangeText={updateDescription}
+            placeholder="Short description"
+            placeholderTextColor={colors.muted}
+            multiline
+          />
           {(!!draft.area || !!draft.category) && (
             <View style={styles.chipRow}>
               {!!draft.area && (
@@ -409,6 +423,12 @@ const styles = StyleSheet.create({
     ...type.cardTitle,
     flex: 1,
     color: colors.ink,
+    padding: 0,
+  },
+  descriptionInput: {
+    color: colors.muted,
+    fontSize: 14,
+    marginBottom: 10,
     padding: 0,
   },
   chipRow: { flexDirection: 'row', gap: 8 },
