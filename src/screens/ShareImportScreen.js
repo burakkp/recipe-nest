@@ -275,7 +275,7 @@ export default function ShareImportScreen({ route, navigation }) {
           <LanguagePicker value={activeLang} loading={translating} onChange={handleLanguageChange} />
           <View style={styles.titleInputRow}>
             <TextInput
-              style={styles.titleInput}
+              style={[styles.titleInput, !isOriginalLang && styles.readOnlyInput]}
               value={displayDraft.title}
               onChangeText={updateTitle}
               editable={isOriginalLang}
@@ -285,7 +285,7 @@ export default function ShareImportScreen({ route, navigation }) {
             <Ionicons name="pencil-outline" size={16} color={colors.muted} />
           </View>
           <TextInput
-            style={styles.descriptionInput}
+            style={[styles.descriptionInput, !isOriginalLang && styles.readOnlyInput]}
             value={displayDraft.description}
             onChangeText={updateDescription}
             editable={isOriginalLang}
@@ -315,7 +315,7 @@ export default function ShareImportScreen({ route, navigation }) {
         {displayDraft.ingredients.map((ing, idx) => (
           <View key={idx} style={styles.ingredientRow}>
             <TextInput
-              style={[styles.input, styles.ingredientName]}
+              style={[styles.input, styles.ingredientName, !isOriginalLang && styles.readOnlyInput]}
               value={ing.name}
               onChangeText={(value) => updateIngredient(idx, 'name', value)}
               editable={isOriginalLang}
@@ -323,7 +323,7 @@ export default function ShareImportScreen({ route, navigation }) {
               placeholderTextColor={colors.muted}
             />
             <TextInput
-              style={[styles.input, styles.ingredientMeasure]}
+              style={[styles.input, styles.ingredientMeasure, !isOriginalLang && styles.readOnlyInput]}
               value={ing.measure}
               onChangeText={(value) => updateIngredient(idx, 'measure', value)}
               editable={isOriginalLang}
@@ -338,7 +338,7 @@ export default function ShareImportScreen({ route, navigation }) {
           <View key={idx} style={styles.stepRow}>
             <Text style={styles.stepNumber}>{idx + 1}</Text>
             <TextInput
-              style={[styles.input, styles.stepInput]}
+              style={[styles.input, styles.stepInput, !isOriginalLang && styles.readOnlyInput]}
               value={step}
               onChangeText={(value) => updateStep(idx, value)}
               editable={isOriginalLang}
@@ -559,6 +559,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   buttonDisabled: {
+    opacity: 0.4,
+  },
+  readOnlyInput: {
     opacity: 0.4,
   },
   primaryButtonText: {
