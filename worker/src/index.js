@@ -6,7 +6,7 @@ const CORS_HEADERS = {
 
 const SYSTEM_PROMPT = `You convert a messy food caption into structured recipe JSON.
 Return ONLY valid JSON, no markdown, no commentary, in this exact shape:
-{"title": "", "area": "", "category": "", "description": "", "ingredients": [{"name": "", "measure": ""}], "steps": []}
+{"title": "", "area": "", "category": "", "description": "", "language": "en", "ingredients": [{"name": "", "measure": ""}], "steps": []}
 Rules:
 - Read the entire text carefully and capture every ingredient and every step mentioned —
   do not stop early or summarize/merge multiple ingredients or steps into one.
@@ -18,9 +18,10 @@ Rules:
   quantities, or steps that aren't stated or clearly implied.
 - "description" is a short 1-2 sentence summary of the dish, written by you (not copied
   verbatim from the source).
-- If the source text is not in English, translate "title", "description", every
-  ingredient "name", and every "steps" entry into English. Keep numbers/quantities in
-  "measure" accurate through the translation.
+- Keep "title", "description", every ingredient "name", and every "steps" entry in the
+  SAME language as the source text — do not translate them.
+- "language" is the ISO 639-1 code of the language the source text is written in (e.g.
+  "en", "tr", "de", "nl", "it", "es"). Default to "en" if you cannot tell.
 - Leave unknown string fields as empty strings, unknown lists as empty arrays.
 - "area" is a cuisine/region (e.g. "Italian"), "category" is a meal type (e.g. "Dessert").
 - If the text is not a recipe at all, return title/description/ingredients/steps empty.`;
@@ -34,6 +35,31 @@ quantities, and numbered or bulleted steps. Read carefully line by line; do not 
 summarize any text, even if it is a long paragraph. If the image is a photo of a finished
 dish with little or no text, instead describe the dish and any visible ingredients in
 detail. Output plain text only, in the original language (do not translate here).`;
+
+const LANGUAGE_NAMES = {
+  en: 'English',
+  nl: 'Dutch',
+  de: 'German',
+  tr: 'Turkish',
+  it: 'Italian',
+  es: 'Spanish',
+};
+
+function buildTranslatePrompt(targetLanguage) {
+  const languageName = LANGUAGE_NAMES[targetLanguage];
+  return `You translate a structured recipe JSON into ${languageName}.
+You will receive JSON in this exact shape:
+{"title": "", "area": "", "category": "", "description": "", "ingredients": [{"name": "", "measure": ""}], "steps": []}
+Return ONLY valid JSON in the exact same shape, no markdown, no commentary.
+Rules:
+- Translate "title", "description", every ingredient "name", "area", and "category" into ${languageName}.
+- Translate every "steps" entry into ${languageName}, preserving the same number of steps in the same order.
+- Keep numeric quantities in "measure" unchanged; translate only unit words (e.g. "cups" ->
+  the ${languageName} word for cups). If "measure" has no unit words, leave it as-is.
+- Do not add, remove, or merge ingredients or steps — the output arrays must have the same
+  length as the input.
+- Leave any field that was already empty in the input as empty in the output.`;
+}
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -128,6 +154,7 @@ function normalizeRecipe(recipe) {
     area: typeof recipe.area === 'string' ? recipe.area : '',
     category: typeof recipe.category === 'string' ? recipe.category : '',
     description: typeof recipe.description === 'string' ? recipe.description : '',
+    language: typeof recipe.language === 'string' && recipe.language ? recipe.language : 'en',
     ingredients: Array.isArray(recipe.ingredients)
       ? recipe.ingredients.map((ing) =>
           ing && typeof ing === 'object'
@@ -153,12 +180,49 @@ async function callVisionLLM(env, bytes) {
   return out.response || out.description || '';
 }
 
-// Swap point for a different model/provider — keep the signature (env, source) -> string.
-async function callLLM(env, source) {
+async function handleTranslate(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return json({ error: 'invalid_json' }, 400);
+  }
+
+  const { recipe, targetLanguage } = body || {};
+  if (!recipe || typeof recipe !== 'object') {
+    return json({ error: 'missing_recipe' }, 400);
+  }
+  if (!targetLanguage || !LANGUAGE_NAMES[targetLanguage]) {
+    return json({ error: 'unsupported_language' }, 400);
+  }
+
+  const source = JSON.stringify({
+    title: recipe.title || '',
+    area: recipe.area || '',
+    category: recipe.category || '',
+    description: recipe.description || '',
+    ingredients: recipe.ingredients || [],
+    steps: recipe.steps || [],
+  });
+
+  const raw = await callLLM(env, buildTranslatePrompt(targetLanguage), source);
+  const translated = normalizeRecipe(
+    parseRecipeJSON(raw) || { title: '', area: '', category: '', description: '', ingredients: [], steps: [] }
+  );
+
+  // The translate prompt never asks for a "language" field, so normalizeRecipe's
+  // default ('en') would be meaningless here — targetLanguage is the only correct value.
+  return json({ ...translated, language: targetLanguage });
+}
+
+// Swap point for a different model/provider — keep the signature
+// (env, systemPrompt, source) -> string. systemPrompt is explicit so this same
+// function serves both extraction and translation (different prompts, same model call).
+async function callLLM(env, systemPrompt, source) {
   const out = await env.AI.run(env.MODEL || '@cf/meta/llama-3.1-8b-instruct-fast', {
     max_tokens: 1500,
     messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       { role: 'user', content: source },
     ],
   });
@@ -175,7 +239,7 @@ async function callLLM(env, source) {
   //   body: JSON.stringify({
   //     model: 'claude-sonnet-4-6',
   //     max_tokens: 1500,
-  //     system: SYSTEM_PROMPT,
+  //     system: systemPrompt,
   //     messages: [{ role: 'user', content: source }],
   //   }),
   // });
@@ -191,6 +255,11 @@ export default {
 
     if (request.method !== 'POST') {
       return json({ error: 'method_not_allowed' }, 405);
+    }
+
+    const { pathname } = new URL(request.url);
+    if (pathname === '/translate') {
+      return handleTranslate(request, env);
     }
 
     const contentType = request.headers.get('content-type') || '';
@@ -250,7 +319,7 @@ export default {
       return json({ error: 'no_text', image, video, handle, sourceUrl }, 422);
     }
 
-    const raw = await callLLM(env, source);
+    const raw = await callLLM(env, SYSTEM_PROMPT, source);
     const recipe = normalizeRecipe(
       parseRecipeJSON(raw) || { title: '', area: '', category: '', ingredients: [], steps: [] }
     );

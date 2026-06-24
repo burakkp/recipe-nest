@@ -4,6 +4,7 @@ import { NavigationContainer, createNavigationContainerRef } from '@react-naviga
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import { SavedProvider } from './src/context/SavedContext';
+import { TranslationsProvider } from './src/context/TranslationsContext';
 import RootNavigator from './src/navigation/RootNavigator';
 
 export const navigationRef = createNavigationContainerRef();
@@ -35,11 +36,13 @@ export default function App() {
     <SafeAreaProvider>
       <ShareIntentProvider>
         <SavedProvider>
-          <NavigationContainer ref={navigationRef}>
-            <ShareIntentHandler />
-            <RootNavigator />
-          </NavigationContainer>
-          <StatusBar style="auto" />
+          <TranslationsProvider>
+            <NavigationContainer ref={navigationRef}>
+              <ShareIntentHandler />
+              <RootNavigator />
+            </NavigationContainer>
+            <StatusBar style="auto" />
+          </TranslationsProvider>
         </SavedProvider>
       </ShareIntentProvider>
     </SafeAreaProvider>
