@@ -12,7 +12,8 @@ Rules:
   do not stop early or summarize/merge multiple ingredients or steps into one.
 - Each ingredient line becomes its own entry; keep its exact quantity/unit in "measure"
   (e.g. "2 cups", "1 tbsp") instead of dropping or vaguely paraphrasing it.
-- Preserve the order steps are described in; one distinct action per step string.
+- Preserve the order steps are described in. Each "steps" array entry must be one plain
+  string (never an object) describing one distinct instruction.
 - Fill in only what you can confidently infer from the text — don't invent ingredients,
   quantities, or steps that aren't stated or clearly implied.
 - Leave unknown string fields as empty strings, unknown lists as empty arrays.
@@ -100,6 +101,34 @@ function parseRecipeJSON(raw) {
   } catch (e) {
     return null;
   }
+}
+
+// The free 8B model sometimes drifts from the requested shape (e.g. emitting
+// {"action": "..."} instead of a plain step string) — coerce back to the
+// app's expected shape rather than letting the screen render raw objects.
+function coerceToString(value) {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object') {
+    const candidate = value.step ?? value.action ?? value.text ?? value.instruction ?? value.description;
+    if (typeof candidate === 'string') return candidate;
+  }
+  return value == null ? '' : String(value);
+}
+
+function normalizeRecipe(recipe) {
+  return {
+    title: typeof recipe.title === 'string' ? recipe.title : '',
+    area: typeof recipe.area === 'string' ? recipe.area : '',
+    category: typeof recipe.category === 'string' ? recipe.category : '',
+    ingredients: Array.isArray(recipe.ingredients)
+      ? recipe.ingredients.map((ing) =>
+          ing && typeof ing === 'object'
+            ? { name: coerceToString(ing.name), measure: coerceToString(ing.measure) }
+            : { name: coerceToString(ing), measure: '' }
+        )
+      : [],
+    steps: Array.isArray(recipe.steps) ? recipe.steps.map(coerceToString) : [],
+  };
 }
 
 // Turns image bytes into plain text (a transcription/description) so the same
@@ -212,8 +241,9 @@ export default {
     }
 
     const raw = await callLLM(env, source);
-    const recipe =
-      parseRecipeJSON(raw) || { title: '', area: '', category: '', ingredients: [], steps: [] };
+    const recipe = normalizeRecipe(
+      parseRecipeJSON(raw) || { title: '', area: '', category: '', ingredients: [], steps: [] }
+    );
 
     return json({ ...recipe, image, video, handle, sourceUrl });
   },
