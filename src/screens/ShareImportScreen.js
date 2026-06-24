@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Linking,
   ScrollView,
@@ -12,19 +13,25 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { extractRecipe } from '../api/extract';
+import { extractRecipe, translateRecipe } from '../api/extract';
 import { useSaved } from '../context/SavedContext';
+import { useTranslations } from '../context/TranslationsContext';
+import LanguagePicker from '../components/LanguagePicker';
 import { colors, radius, spacing, type } from '../theme';
 
 export default function ShareImportScreen({ route, navigation }) {
   const { url, text, image: sharedImage } = route.params || {};
   const { addImported, addToFolder, DEFAULT_FOLDER_ID } = useSaved();
+  const { setCachedTranslation } = useTranslations();
   const insets = useSafeAreaInsets();
 
   const [status, setStatus] = useState('loading'); // loading | ready | needs_caption | error
   const [draft, setDraft] = useState(null);
   const [captionInfo, setCaptionInfo] = useState(null); // { image, video, handle, sourceUrl }
   const [pastedText, setPastedText] = useState('');
+  const [activeLang, setActiveLang] = useState('en');
+  const [translating, setTranslating] = useState(false);
+  const [translatedDrafts, setTranslatedDrafts] = useState({});
 
   const runExtract = useCallback((payload) => {
     setStatus('loading');
@@ -38,12 +45,15 @@ export default function ShareImportScreen({ route, navigation }) {
           video: data.video || '',
           handle: data.handle || '',
           description: data.description || '',
+          language: data.language || 'en',
           area: data.area || '',
           category: data.category || '',
           ingredients: data.ingredients || [],
           steps: data.steps || [],
           sourceUrl: data.sourceUrl || payload.url || '',
         });
+        setTranslatedDrafts({});
+        setActiveLang(data.language || 'en');
         setStatus('ready');
       })
       .catch((err) => {
@@ -89,6 +99,38 @@ export default function ShareImportScreen({ route, navigation }) {
     });
   }
 
+  const isOriginalLang = !draft || activeLang === draft.language;
+  const displayDraft = draft && !isOriginalLang && translatedDrafts[activeLang]
+    ? { ...draft, ...translatedDrafts[activeLang] }
+    : draft;
+
+  function handleLanguageChange(langCode) {
+    if (langCode === draft.language || translatedDrafts[langCode]) {
+      setActiveLang(langCode);
+      return;
+    }
+    setTranslating(true);
+    translateRecipe({
+      recipe: {
+        title: draft.title,
+        description: draft.description,
+        area: draft.area,
+        category: draft.category,
+        ingredients: draft.ingredients,
+        steps: draft.steps,
+      },
+      targetLanguage: langCode,
+    })
+      .then((data) => {
+        setTranslatedDrafts((prev) => ({ ...prev, [langCode]: data }));
+        setActiveLang(langCode);
+      })
+      .catch(() => {
+        Alert.alert('Translation failed', 'Could not translate this recipe right now.');
+      })
+      .finally(() => setTranslating(false));
+  }
+
   function handleSave() {
     const recipe = {
       id: `imported-${Date.now()}`,
@@ -97,6 +139,7 @@ export default function ShareImportScreen({ route, navigation }) {
       video: draft.video,
       handle: draft.handle,
       description: draft.description,
+      language: draft.language,
       area: draft.area,
       category: draft.category,
       ingredients: draft.ingredients,
@@ -106,6 +149,9 @@ export default function ShareImportScreen({ route, navigation }) {
     };
     addImported(recipe);
     addToFolder(DEFAULT_FOLDER_ID, recipe);
+    Object.entries(translatedDrafts).forEach(([langCode, data]) => {
+      setCachedTranslation(recipe.id, langCode, data);
+    });
     navigation.replace('Detail', { id: recipe.id, recipe });
   }
 
@@ -226,11 +272,13 @@ export default function ShareImportScreen({ route, navigation }) {
               <Text style={styles.sourceLink}>Watch original video</Text>
             </TouchableOpacity>
           )}
+          <LanguagePicker value={activeLang} loading={translating} onChange={handleLanguageChange} />
           <View style={styles.titleInputRow}>
             <TextInput
               style={styles.titleInput}
-              value={draft.title}
+              value={displayDraft.title}
               onChangeText={updateTitle}
+              editable={isOriginalLang}
               placeholder="Recipe title"
               placeholderTextColor={colors.muted}
             />
@@ -238,22 +286,23 @@ export default function ShareImportScreen({ route, navigation }) {
           </View>
           <TextInput
             style={styles.descriptionInput}
-            value={draft.description}
+            value={displayDraft.description}
             onChangeText={updateDescription}
+            editable={isOriginalLang}
             placeholder="Short description"
             placeholderTextColor={colors.muted}
             multiline
           />
-          {(!!draft.area || !!draft.category) && (
+          {(!!displayDraft.area || !!displayDraft.category) && (
             <View style={styles.chipRow}>
-              {!!draft.area && (
+              {!!displayDraft.area && (
                 <View style={styles.chip}>
-                  <Text style={styles.chipText}>{draft.area}</Text>
+                  <Text style={styles.chipText}>{displayDraft.area}</Text>
                 </View>
               )}
-              {!!draft.category && (
+              {!!displayDraft.category && (
                 <View style={styles.chip}>
-                  <Text style={styles.chipText}>{draft.category}</Text>
+                  <Text style={styles.chipText}>{displayDraft.category}</Text>
                 </View>
               )}
             </View>
@@ -262,13 +311,14 @@ export default function ShareImportScreen({ route, navigation }) {
       </View>
 
       <View style={styles.formBody}>
-        <Text style={styles.sectionHeading}>Ingredients · {draft.ingredients.length}</Text>
-        {draft.ingredients.map((ing, idx) => (
+        <Text style={styles.sectionHeading}>Ingredients · {displayDraft.ingredients.length}</Text>
+        {displayDraft.ingredients.map((ing, idx) => (
           <View key={idx} style={styles.ingredientRow}>
             <TextInput
               style={[styles.input, styles.ingredientName]}
               value={ing.name}
               onChangeText={(value) => updateIngredient(idx, 'name', value)}
+              editable={isOriginalLang}
               placeholder="Ingredient"
               placeholderTextColor={colors.muted}
             />
@@ -276,20 +326,22 @@ export default function ShareImportScreen({ route, navigation }) {
               style={[styles.input, styles.ingredientMeasure]}
               value={ing.measure}
               onChangeText={(value) => updateIngredient(idx, 'measure', value)}
+              editable={isOriginalLang}
               placeholder="Measure"
               placeholderTextColor={colors.muted}
             />
           </View>
         ))}
 
-        <Text style={styles.sectionHeading}>Steps · {draft.steps.length}</Text>
-        {draft.steps.map((step, idx) => (
+        <Text style={styles.sectionHeading}>Steps · {displayDraft.steps.length}</Text>
+        {displayDraft.steps.map((step, idx) => (
           <View key={idx} style={styles.stepRow}>
             <Text style={styles.stepNumber}>{idx + 1}</Text>
             <TextInput
               style={[styles.input, styles.stepInput]}
               value={step}
               onChangeText={(value) => updateStep(idx, value)}
+              editable={isOriginalLang}
               multiline
             />
           </View>
