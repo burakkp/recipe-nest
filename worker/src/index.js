@@ -6,7 +6,7 @@ const CORS_HEADERS = {
 
 const SYSTEM_PROMPT = `You convert a messy food caption into structured recipe JSON.
 Return ONLY valid JSON, no markdown, no commentary, in this exact shape:
-{"title": "", "area": "", "category": "", "description": "", "ingredients": [{"name": "", "measure": ""}], "steps": []}
+{"title": "", "area": "", "category": "", "description": "", "language": "en", "ingredients": [{"name": "", "measure": ""}], "steps": []}
 Rules:
 - Read the entire text carefully and capture every ingredient and every step mentioned —
   do not stop early or summarize/merge multiple ingredients or steps into one.
@@ -18,9 +18,10 @@ Rules:
   quantities, or steps that aren't stated or clearly implied.
 - "description" is a short 1-2 sentence summary of the dish, written by you (not copied
   verbatim from the source).
-- If the source text is not in English, translate "title", "description", every
-  ingredient "name", and every "steps" entry into English. Keep numbers/quantities in
-  "measure" accurate through the translation.
+- Keep "title", "description", every ingredient "name", and every "steps" entry in the
+  SAME language as the source text — do not translate them.
+- "language" is the ISO 639-1 code of the language the source text is written in (e.g.
+  "en", "tr", "de", "nl", "it", "es"). Default to "en" if you cannot tell.
 - Leave unknown string fields as empty strings, unknown lists as empty arrays.
 - "area" is a cuisine/region (e.g. "Italian"), "category" is a meal type (e.g. "Dessert").
 - If the text is not a recipe at all, return title/description/ingredients/steps empty.`;
@@ -128,6 +129,7 @@ function normalizeRecipe(recipe) {
     area: typeof recipe.area === 'string' ? recipe.area : '',
     category: typeof recipe.category === 'string' ? recipe.category : '',
     description: typeof recipe.description === 'string' ? recipe.description : '',
+    language: typeof recipe.language === 'string' && recipe.language ? recipe.language : 'en',
     ingredients: Array.isArray(recipe.ingredients)
       ? recipe.ingredients.map((ing) =>
           ing && typeof ing === 'object'
