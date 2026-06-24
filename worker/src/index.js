@@ -8,11 +8,24 @@ const SYSTEM_PROMPT = `You convert a messy food caption into structured recipe J
 Return ONLY valid JSON, no markdown, no commentary, in this exact shape:
 {"title": "", "area": "", "category": "", "ingredients": [{"name": "", "measure": ""}], "steps": []}
 Rules:
-- Fill in only what you can confidently infer from the text.
+- Read the entire text carefully and capture every ingredient and every step mentioned —
+  do not stop early or summarize/merge multiple ingredients or steps into one.
+- Each ingredient line becomes its own entry; keep its exact quantity/unit in "measure"
+  (e.g. "2 cups", "1 tbsp") instead of dropping or vaguely paraphrasing it.
+- Preserve the order steps are described in; one distinct action per step string.
+- Fill in only what you can confidently infer from the text — don't invent ingredients,
+  quantities, or steps that aren't stated or clearly implied.
 - Leave unknown string fields as empty strings, unknown lists as empty arrays.
 - "area" is a cuisine/region (e.g. "Italian"), "category" is a meal type (e.g. "Dessert").
-- "steps" is an ordered array of short instruction strings.
 - If the text is not a recipe at all, return title/ingredients/steps empty.`;
+
+// Prompt for the vision model: turn an image (often an Instagram Story with the
+// recipe written as on-image text stickers, since Stories have no caption field)
+// into plain text the same SYSTEM_PROMPT pipeline above can then structure.
+const VISION_PROMPT = `Transcribe every piece of text visible in this image exactly as written,
+including any title, ingredient list with quantities, and numbered or bulleted steps.
+If the image is a photo of a finished dish with little or no on-image text, instead
+describe the dish and any visible ingredients in detail. Output plain text only.`;
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -89,6 +102,18 @@ function parseRecipeJSON(raw) {
   }
 }
 
+// Turns image bytes into plain text (a transcription/description) so the same
+// text-based callLLM below can structure it into a recipe. Swap point for a
+// different vision model/provider — keep the signature (env, bytes) -> string.
+async function callVisionLLM(env, bytes) {
+  const out = await env.AI.run(env.VISION_MODEL || '@cf/llava-hf/llava-1.5-7b-hf', {
+    image: bytes,
+    prompt: VISION_PROMPT,
+    max_tokens: 1024,
+  });
+  return out.description || '';
+}
+
 // Swap point for a different model/provider — keep the signature (env, source) -> string.
 async function callLLM(env, source) {
   const out = await env.AI.run(env.MODEL || '@cf/meta/llama-3.1-8b-instruct-fast', {
@@ -129,35 +154,56 @@ export default {
       return json({ error: 'method_not_allowed' }, 405);
     }
 
-    let body;
-    try {
-      body = await request.json();
-    } catch (e) {
-      return json({ error: 'invalid_json' }, 400);
-    }
-
-    const { url, text } = body || {};
-    const sourceUrl = url || '';
+    const contentType = request.headers.get('content-type') || '';
+    const parts = [];
+    let sourceUrl = '';
     let image = null;
     let video = null;
     let handle = null;
-    const parts = [];
 
-    if (url) {
-      const og = await resolveUrl(url);
-      image = og.image;
-      video = og.video;
-      handle = og.handle;
-      // A real public post always has a description (the caption). A bare
-      // title with no description is what Instagram's blocked/login-wall
-      // pages return — don't treat that as real content.
-      if (og.description) {
-        if (og.title) parts.push(og.title);
-        parts.push(og.description);
+    if (contentType.includes('multipart/form-data')) {
+      // A shared Instagram Story: no caption, no public post link — just an
+      // image, often with the recipe written as on-image text stickers (Stories
+      // have no caption field at all). Run it through the vision model first.
+      let formData;
+      try {
+        formData = await request.formData();
+      } catch (e) {
+        return json({ error: 'invalid_form_data' }, 400);
       }
-    }
+      const file = formData.get('image');
+      if (file && typeof file !== 'string') {
+        const bytes = [...new Uint8Array(await file.arrayBuffer())];
+        const description = await callVisionLLM(env, bytes);
+        if (description.trim()) parts.push(description.trim());
+      }
+    } else {
+      let body;
+      try {
+        body = await request.json();
+      } catch (e) {
+        return json({ error: 'invalid_json' }, 400);
+      }
 
-    if (text && text.trim() && !isBareUrl(text)) parts.push(text.trim());
+      const { url, text } = body || {};
+      sourceUrl = url || '';
+
+      if (url) {
+        const og = await resolveUrl(url);
+        image = og.image;
+        video = og.video;
+        handle = og.handle;
+        // A real public post always has a description (the caption). A bare
+        // title with no description is what Instagram's blocked/login-wall
+        // pages return — don't treat that as real content.
+        if (og.description) {
+          if (og.title) parts.push(og.title);
+          parts.push(og.description);
+        }
+      }
+
+      if (text && text.trim() && !isBareUrl(text)) parts.push(text.trim());
+    }
 
     const source = parts.join('\n\n').trim();
 

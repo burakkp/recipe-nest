@@ -13,11 +13,15 @@ function ShareIntentHandler() {
 
   useEffect(() => {
     if (!hasShareIntent || !navigationRef.isReady()) return;
-    const shared = shareIntent.webUrl || shareIntent.text;
+    const sharedImage = shareIntent.files?.find((f) => f.mimeType?.startsWith('image/'));
+    const shared = shareIntent.webUrl || shareIntent.text || sharedImage;
     if (shared) {
       navigationRef.navigate('ShareImport', {
         url: shareIntent.webUrl || null,
         text: shareIntent.text || null,
+        // Instagram Stories have no caption/link — only an image (often the
+        // recipe written as on-image text), so fall back to it when present.
+        image: shareIntent.webUrl || shareIntent.text ? null : sharedImage || null,
       });
     }
     resetShareIntent();

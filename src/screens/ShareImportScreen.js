@@ -17,7 +17,7 @@ import { useSaved } from '../context/SavedContext';
 import { colors, radius, spacing, type } from '../theme';
 
 export default function ShareImportScreen({ route, navigation }) {
-  const { url, text } = route.params || {};
+  const { url, text, image: sharedImage } = route.params || {};
   const { addImported, addToFolder, DEFAULT_FOLDER_ID } = useSaved();
   const insets = useSafeAreaInsets();
 
@@ -32,7 +32,9 @@ export default function ShareImportScreen({ route, navigation }) {
       .then((data) => {
         setDraft({
           title: data.title || '',
-          image: data.image || '',
+          // The worker never echoes an image for a Story upload (it has no
+          // hosted image to return) — fall back to the local shared file.
+          image: data.image || payload.image?.path || '',
           video: data.video || '',
           handle: data.handle || '',
           area: data.area || '',
@@ -46,7 +48,7 @@ export default function ShareImportScreen({ route, navigation }) {
       .catch((err) => {
         if (err.code === 'NEEDS_CAPTION') {
           setCaptionInfo({
-            image: err.image,
+            image: err.image || payload.image?.path || null,
             video: err.video,
             handle: err.handle,
             sourceUrl: err.sourceUrl,
@@ -59,8 +61,8 @@ export default function ShareImportScreen({ route, navigation }) {
   }, []);
 
   useEffect(() => {
-    runExtract({ url, text });
-  }, [runExtract, url, text]);
+    runExtract({ url, text, image: sharedImage });
+  }, [runExtract, url, text, sharedImage]);
 
   function updateTitle(value) {
     setDraft((prev) => ({ ...prev, title: value }));
@@ -120,7 +122,11 @@ export default function ShareImportScreen({ route, navigation }) {
         {captionInfo?.image ? (
           <Image source={{ uri: captionInfo.image }} style={styles.previewImage} />
         ) : null}
-        <Text style={styles.heading}>We couldn't read a recipe from that link</Text>
+        <Text style={styles.heading}>
+          {captionInfo?.sourceUrl
+            ? "We couldn't read a recipe from that link"
+            : "We couldn't read a recipe from that image"}
+        </Text>
         <Text style={styles.muted}>
           Paste the caption or recipe text below and we'll structure it for you.
         </Text>

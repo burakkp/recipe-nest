@@ -7,3 +7,4 @@ binding = "AI"
 
 [vars]
 MODEL = "@cf/meta/llama-3.1-8b-instruct-fast"
+VISION_MODEL = "@cf/llava-hf/llava-1.5-7b-hf"
