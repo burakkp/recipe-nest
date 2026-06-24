@@ -155,12 +155,14 @@ async function callVisionLLM(env, bytes) {
   return out.response || out.description || '';
 }
 
-// Swap point for a different model/provider — keep the signature (env, source) -> string.
-async function callLLM(env, source) {
+// Swap point for a different model/provider — keep the signature
+// (env, systemPrompt, source) -> string. systemPrompt is explicit so this same
+// function serves both extraction and translation (different prompts, same model call).
+async function callLLM(env, systemPrompt, source) {
   const out = await env.AI.run(env.MODEL || '@cf/meta/llama-3.1-8b-instruct-fast', {
     max_tokens: 1500,
     messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       { role: 'user', content: source },
     ],
   });
@@ -177,7 +179,7 @@ async function callLLM(env, source) {
   //   body: JSON.stringify({
   //     model: 'claude-sonnet-4-6',
   //     max_tokens: 1500,
-  //     system: SYSTEM_PROMPT,
+  //     system: systemPrompt,
   //     messages: [{ role: 'user', content: source }],
   //   }),
   // });
@@ -252,7 +254,7 @@ export default {
       return json({ error: 'no_text', image, video, handle, sourceUrl }, 422);
     }
 
-    const raw = await callLLM(env, source);
+    const raw = await callLLM(env, SYSTEM_PROMPT, source);
     const recipe = normalizeRecipe(
       parseRecipeJSON(raw) || { title: '', area: '', category: '', ingredients: [], steps: [] }
     );
