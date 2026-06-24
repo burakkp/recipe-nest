@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  Alert,
   Image,
   Linking,
   Modal,
@@ -14,7 +15,10 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchRecipeById } from '../api/mealdb';
+import { translateRecipe } from '../api/extract';
 import { useSaved } from '../context/SavedContext';
+import { useTranslations } from '../context/TranslationsContext';
+import LanguagePicker from '../components/LanguagePicker';
 import { colors, radius, shadow, spacing, type } from '../theme';
 
 function FolderPicker({ visible, recipe, onClose }) {
@@ -82,7 +86,10 @@ export default function DetailScreen({ route, navigation }) {
   const [loading, setLoading] = useState(!passedRecipe);
   const [error, setError] = useState(null);
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [activeLang, setActiveLang] = useState(passedRecipe?.language || 'en');
+  const [translating, setTranslating] = useState(false);
   const { isSaved, toggleSave } = useSaved();
+  const { getCachedTranslation, setCachedTranslation } = useTranslations();
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -91,7 +98,10 @@ export default function DetailScreen({ route, navigation }) {
     setLoading(true);
     fetchRecipeById(id)
       .then((data) => {
-        if (active) setRecipe(data);
+        if (active) {
+          setRecipe(data);
+          if (data) setActiveLang(data.language || 'en');
+        }
       })
       .catch(() => {
         if (active) setError('Could not load this recipe.');
@@ -121,6 +131,43 @@ export default function DetailScreen({ route, navigation }) {
   }
 
   const saved = isSaved(recipe.id);
+  const originalLanguage = recipe.language || 'en';
+  const cached = activeLang !== originalLanguage ? getCachedTranslation(recipe.id, activeLang) : null;
+  const displayRecipe = cached || {
+    title: recipe.title,
+    description: recipe.description || '',
+    area: recipe.area || '',
+    category: recipe.category || '',
+    ingredients: recipe.ingredients || [],
+    steps: recipe.steps || [],
+  };
+
+  function handleLanguageChange(langCode) {
+    if (langCode === originalLanguage || getCachedTranslation(recipe.id, langCode)) {
+      setActiveLang(langCode);
+      return;
+    }
+    setTranslating(true);
+    translateRecipe({
+      recipe: {
+        title: recipe.title,
+        description: recipe.description || '',
+        area: recipe.area || '',
+        category: recipe.category || '',
+        ingredients: recipe.ingredients || [],
+        steps: recipe.steps || [],
+      },
+      targetLanguage: langCode,
+    })
+      .then((data) => {
+        setCachedTranslation(recipe.id, langCode, data);
+        setActiveLang(langCode);
+      })
+      .catch(() => {
+        Alert.alert('Translation failed', 'Could not translate this recipe right now.');
+      })
+      .finally(() => setTranslating(false));
+  }
 
   return (
     <View style={styles.screen}>
@@ -143,32 +190,36 @@ export default function DetailScreen({ route, navigation }) {
         </View>
 
         <View style={styles.body}>
-          <Text style={styles.title}>{recipe.title}</Text>
+          <Text style={styles.title}>{displayRecipe.title}</Text>
           {!!recipe.handle && <Text style={styles.handle}>@{recipe.handle}</Text>}
-          {!!recipe.description && <Text style={styles.description}>{recipe.description}</Text>}
+          {!!displayRecipe.description && (
+            <Text style={styles.description}>{displayRecipe.description}</Text>
+          )}
 
-          {(recipe.category || recipe.area) && (
+          <LanguagePicker value={activeLang} loading={translating} onChange={handleLanguageChange} />
+
+          {(displayRecipe.category || displayRecipe.area) && (
             <View style={styles.tagsRow}>
-              {recipe.area && (
+              {displayRecipe.area && (
                 <View style={styles.chip}>
-                  <Text style={styles.chipText}>{recipe.area}</Text>
+                  <Text style={styles.chipText}>{displayRecipe.area}</Text>
                 </View>
               )}
-              {recipe.category && (
+              {displayRecipe.category && (
                 <View style={styles.chip}>
-                  <Text style={styles.chipText}>{recipe.category}</Text>
+                  <Text style={styles.chipText}>{displayRecipe.category}</Text>
                 </View>
               )}
             </View>
           )}
 
           <Text style={styles.sectionHeading}>Ingredients</Text>
-          {(recipe.ingredients || []).map((ing, idx) => (
+          {displayRecipe.ingredients.map((ing, idx) => (
             <View
               key={`${ing.name}-${idx}`}
               style={[
                 styles.ingredientRow,
-                idx === recipe.ingredients.length - 1 && styles.noBorder,
+                idx === displayRecipe.ingredients.length - 1 && styles.noBorder,
               ]}
             >
               <Text style={styles.ingredientName}>{ing.name}</Text>
@@ -177,7 +228,7 @@ export default function DetailScreen({ route, navigation }) {
           ))}
 
           <Text style={styles.sectionHeading}>Method</Text>
-          {(recipe.steps || []).map((step, idx) => (
+          {displayRecipe.steps.map((step, idx) => (
             <View key={idx} style={styles.stepRow}>
               <View style={styles.stepNumber}>
                 <Text style={styles.stepNumberText}>{idx + 1}</Text>
