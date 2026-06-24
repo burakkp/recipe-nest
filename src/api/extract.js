@@ -40,3 +40,19 @@ export async function extractRecipe({ url, text, image }) {
 
   return data;
 }
+
+export async function translateRecipe({ recipe, targetLanguage }) {
+  const res = await fetch(`${EXTRACT_ENDPOINT}/translate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recipe, targetLanguage }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || 'translate_failed');
+  }
+
+  return data;
+}
