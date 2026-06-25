@@ -1,6 +1,6 @@
 // src/theme.js
-// Single source of truth for Plated's design tokens.
-// Mirrors design_handoff_plated/README.md. Import these everywhere instead of hardcoding values.
+// Single source of truth for RecipeNest's design tokens.
+// Mirrors design_handoff_recipenest/README.md. Import these everywhere instead of hardcoding values.
 
 export const colors = {
   bg:        '#FBF8F4', // app background (import / empty screens)

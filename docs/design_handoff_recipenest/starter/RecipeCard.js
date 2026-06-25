@@ -1,5 +1,5 @@
 // src/components/RecipeCard.js
-// Plated feed card — "Direction A · Social" from the design reference.
+// RecipeNest feed card — "Direction A · Social" from the design reference.
 //
 // Renders an Instagram-style card: author row, edge-to-edge 1:1 photo, action row
 // (heart / comment / spacer / bookmark), title, and a meta chip row (cook time + category).
@@ -25,7 +25,7 @@ export default function RecipeCard({ recipe, onPress, isSaved = false, onToggleS
       <View style={styles.authorRow}>
         <View style={styles.avatar} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.author}>{recipe.author || 'plated.kitchen'}</Text>
+          <Text style={styles.author}>{recipe.author || 'recipenest.kitchen'}</Text>
           <Text style={styles.authorSub}>{recipe.area || 'Recipe'}</Text>
         </View>
         <Ionicons name="ellipsis-horizontal" size={20} color={colors.ink} />

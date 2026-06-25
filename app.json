@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Plated",
-    "slug": "plated",
-    "scheme": "plated",
+    "name": "RecipeNest",
+    "slug": "recipenest",
+    "scheme": "recipenest",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.burakkp.plated"
+      "bundleIdentifier": "com.burakkp.recipenest"
     },
     "android": {
-      "package": "com.burakkp.plated",
+      "package": "com.burakkp.recipenest",
       "adaptiveIcon": {
         "backgroundColor": "#FBF8F4",
         "foregroundImage": "./assets/android-icon-foreground.png",
