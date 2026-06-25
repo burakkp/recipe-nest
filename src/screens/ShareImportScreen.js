@@ -240,7 +240,7 @@ export default function ShareImportScreen({ route, navigation }) {
         <View style={styles.authorRow}>
           <View style={styles.avatar} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.author}>plated.kitchen</Text>
+            <Text style={styles.author}>recipenest.kitchen</Text>
             <Text style={styles.authorSub}>{draft.area || 'Imported recipe'}</Text>
           </View>
           <Ionicons name="ellipsis-horizontal" size={20} color={colors.ink} />

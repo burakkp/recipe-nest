@@ -1,4 +1,4 @@
-// Design tokens — mirrors docs/design_handoff_plated/README.md.
+// Design tokens — mirrors docs/design_handoff_recipenest/README.md.
 export const colors = {
   bg: '#FBF8F4', // app background (import / empty screens)
   screen: '#FFFFFF', // card & screen surfaces

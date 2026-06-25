@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CATEGORIES, fetchByCategory } from '../api/mealdb';
 import { useSaved } from '../context/SavedContext';
 import RecipeCard from '../components/RecipeCard';
+import LogoMark from '../components/Logo';
 import { colors, spacing, type } from '../theme';
 
 export default function FeedScreen({ navigation }) {
@@ -55,9 +56,9 @@ export default function FeedScreen({ navigation }) {
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <View style={styles.brand}>
           <View style={styles.logoMark}>
-            <Ionicons name="radio-button-on" size={16} color={colors.screen} />
+            <LogoMark size={16} color={colors.screen} />
           </View>
-          <Text style={styles.wordmark}>Plated</Text>
+          <Text style={styles.wordmark}>RecipeNest</Text>
         </View>
         <Ionicons name="heart-outline" size={24} color={colors.ink} />
       </View>

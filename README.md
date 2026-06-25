@@ -1,4 +1,4 @@
-# Plated
+# RecipeNest
 
 An Instagram-style recipe app. Browse a recipe feed, search, save favorites, and import a
 recipe straight from a shared link, caption, or Story image — a Cloudflare Worker resolves

@@ -1,7 +1,7 @@
-# Handoff: Plated — Recipe App UI
+# Handoff: RecipeNest — Recipe App UI
 
 ## Overview
-Plated is a warm, photo-first recipe app: an Instagram-style vertical feed, recipe detail,
+RecipeNest is a warm, photo-first recipe app: an Instagram-style vertical feed, recipe detail,
 search, saved recipes organized into **user-created folders**, and a headline **share-to-import**
 flow that structures a shared post into a recipe with an LLM.
 
@@ -11,7 +11,7 @@ a Cloudflare Worker. The brief defines the architecture; this README defines exa
 screen should **look** and how the design maps onto your target file structure.
 
 ## About the design files
-`Plated App Design.dc.html` is a **design reference created in HTML** — a static prototype
+`RecipeNest App Design.dc.html` is a **design reference created in HTML** — a static prototype
 showing intended look, layout, and copy. It is **not** code to copy. Recreate these screens in
 React Native using your existing patterns (StyleSheet, React Navigation, `@expo/vector-icons`).
 Where the HTML uses inline CSS, translate to `StyleSheet.create`. Where it uses gradient
@@ -91,14 +91,39 @@ brief). Mapping:
 
 ---
 
+## Logo / brand mark
+RecipeNest's mark is a **woven nest with an egg** — a cozy, food-adjacent symbol. It sits in a
+rounded-square tile of `accent` (#FF4D2E), drawn in white. Use it for the app icon, the feed
+header, splash, and anywhere the brand appears.
+
+- **Tile:** accent bg, `borderRadius` ≈ 0.3× tile size (14 on a 46pt tile, 9 on 28pt). Mark
+  occupies ~58% of the tile.
+- **Wordmark:** "RecipeNest" in Plus Jakarta Sans 800, `letterSpacing: -0.5`, `ink` color.
+- **SVG source** (24×24 viewBox, white stroke, scales cleanly to an app icon):
+
+```svg
+<svg viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2"
+     stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 11a9 6 0 0 0 18 0"/>          <!-- outer nest bowl -->
+  <path d="M6.5 11.8a5.5 3.4 0 0 0 11 0"/>   <!-- inner weave -->
+  <circle cx="12" cy="10.2" r="2.4" fill="#FFFFFF" stroke="none"/> <!-- egg -->
+</svg>
+```
+
+In React Native render it with `react-native-svg` (`Svg`, `Path`, `Circle`), or export a 1024px
+PNG of the tile+mark for `app.json` `icon`/`splash`. For the in-app feed header, the white mark
+on the accent tile + the wordmark in `ink` is the lockup.
+
+---
+
 ## Screens / Views
 
 Phone canvas in the mock is 390pt wide. Horizontal screen padding is **22pt** everywhere unless
 noted. Bottom tab bar is 86pt tall (incl. safe area), 1px top border in `line`.
 
 ### 1. Feed → `screens/FeedScreen.js` + `components/RecipeCard.js`
-- **Header (not scrolled):** Plated wordmark left — a 28pt accent rounded square (radius 9) with
-  the target-circle glyph + "Plated" at 22pt/800. A `heart-outline` icon top-right.
+- **Header (not scrolled):** RecipeNest wordmark left — a 28pt accent rounded square (radius 9) with
+  the **nest mark** + "RecipeNest" at 22pt/800. A `heart-outline` icon top-right.
 - **Category chips:** horizontal `ScrollView`, 8pt gap. Active chip = `ink` bg, white text;
   inactive = `chip` bg, `#5c544c` text. Padding 9×17, fully rounded. From `CATEGORIES`.
 - **RecipeCard** (the feed unit):
@@ -200,7 +225,7 @@ Drop-in React Native files to copy into `src/`:
   numeric cook time — supply your own defaults or omit those chips.)
 
 ## Files
-- `Plated App Design.dc.html` — the full design reference (open in a browser). Sections, in order:
+- `RecipeNest App Design.dc.html` — the full design reference (open in a browser). Sections, in order:
   Design system (palette/type/icons/components), Core screens (Feed, Detail, Search, Saved/Folders,
   Folder detail), Share-to-import (loading, editable draft, paste fallback), and two feed-card
   directions (A social / B editorial). The build uses **Direction A** for the feed.
